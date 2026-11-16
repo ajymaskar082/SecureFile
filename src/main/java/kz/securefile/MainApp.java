@@ -12,6 +12,8 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 
 public class MainApp extends Application {
 
@@ -43,77 +45,43 @@ public class MainApp extends Application {
         fileLabel = new Label("Әзірге файл таңдалмады");
 
         passwordField = new PasswordField();
-        passwordField.setPromptText("Құпиясөз енгізіңіз");
+        passwordField.setPromptText("Құпиясөз (кемінде 8 таңба)");
 
         resultArea = new TextArea();
-        resultArea.setPromptText(
-                "Тексеру және шифрлау нәтижелері..."
-        );
+        resultArea.setPromptText("Нәтижелер...");
         resultArea.setEditable(false);
-        resultArea.setPrefRowCount(8);
+        resultArea.setPrefRowCount(9);
 
         statusLabel = new Label("Жүйе дайын.");
-        statusLabel.setStyle("-fx-text-fill: #16a34a;");
 
         selectButton.setOnAction(e -> selectFile(stage));
-
         scanButton.setOnAction(e -> scanSelectedFile());
+        encryptButton.setOnAction(e -> encryptFile(stage));
+        decryptButton.setOnAction(e -> decryptFile(stage));
 
-        encryptButton.setOnAction(e ->
-                statusLabel.setText(
-                        "Шифрлау модулі келесі кезеңде қосылады."
-                )
-        );
-
-        decryptButton.setOnAction(e ->
-                statusLabel.setText(
-                        "Дешифрлау модулі келесі кезеңде қосылады."
-                )
-        );
-
-        VBox fileSection = new VBox(10,
-                new Label("1. Файлды таңдаңыз"),
-                selectButton,
-                fileLabel
-        );
-
-        VBox securitySection = new VBox(10,
-                new Label("2. Құпиясөз"),
-                passwordField
-        );
-
-        HBox actions = new HBox(10,
-                scanButton,
-                encryptButton,
-                decryptButton
-        );
-
-        actions.setAlignment(Pos.CENTER_LEFT);
-
-        VBox resultSection = new VBox(10,
-                new Label("3. Privacy Radar нәтижесі"),
-                resultArea,
-                statusLabel
-        );
-
-        VBox content = new VBox(22,
+        VBox content = new VBox(20,
                 title,
                 subtitle,
                 new Separator(),
-                fileSection,
-                securitySection,
-                actions,
-                resultSection
+                new Label("1. Файлды таңдаңыз"),
+                selectButton,
+                fileLabel,
+                new Label("2. Құпиясөз"),
+                passwordField,
+                new HBox(10, scanButton, encryptButton, decryptButton),
+                new Label("3. Нәтиже"),
+                resultArea,
+                statusLabel
         );
 
         content.setPadding(new Insets(30));
         content.setStyle("-fx-background-color: #f8fafc;");
 
-        Scene scene = new Scene(content, 720, 580);
+        Scene scene = new Scene(content, 760, 620);
 
-        stage.setTitle("SecureFile - File Security System");
-        stage.setMinWidth(650);
-        stage.setMinHeight(520);
+        stage.setTitle("SecureFile");
+        stage.setMinWidth(680);
+        stage.setMinHeight(550);
         stage.setScene(scene);
         stage.show();
     }
@@ -121,13 +89,13 @@ public class MainApp extends Application {
     private void selectFile(Stage stage) {
 
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Қорғалатын файлды таңдаңыз");
+        chooser.setTitle("Файл таңдаңыз");
 
         selectedFile = chooser.showOpenDialog(stage);
 
         if (selectedFile != null) {
             fileLabel.setText(selectedFile.getName());
-            statusLabel.setText("Файл сәтті таңдалды.");
+            statusLabel.setText("Файл таңдалды.");
             resultArea.clear();
         }
     }
@@ -144,19 +112,97 @@ public class MainApp extends Application {
                     PrivacyScanner.scan(selectedFile);
 
             resultArea.setText(result.getReport());
-
-            statusLabel.setText(
-                    "Тексеру аяқталды. Қауіп деңгейі: "
-                            + result.getRiskLevel()
-            );
+            statusLabel.setText("Тексеру аяқталды.");
 
         } catch (IOException ex) {
+            showError(ex.getMessage());
+        }
+    }
 
-            resultArea.setText(
-                    "Қате: " + ex.getMessage()
+    private void encryptFile(Stage stage) {
+
+        if (selectedFile == null) {
+            showMessage("Алдымен файл таңдаңыз.");
+            return;
+        }
+
+        char[] password = passwordField.getText().toCharArray();
+
+        try {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Шифрланған файлды сақтау");
+            chooser.setInitialFileName(
+                    selectedFile.getName() + ".enc"
             );
 
-            statusLabel.setText("Файлды тексеру мүмкін болмады.");
+            File destination = chooser.showSaveDialog(stage);
+
+            if (destination == null) return;
+
+            EncryptionService.encrypt(
+                    selectedFile.toPath(),
+                    destination.toPath(),
+                    password
+            );
+
+            resultArea.setText(
+                    "Файл сәтті шифрланды!\n\n" +
+                    "Алгоритм: AES-256-GCM\n" +
+                    "Кілт алу: PBKDF2WithHmacSHA256\n" +
+                    "Нәтиже: " + destination.getName()
+            );
+
+            statusLabel.setText("Шифрлау аяқталды.");
+
+        } catch (IOException | GeneralSecurityException |
+                 IllegalArgumentException ex) {
+            showError(ex.getMessage());
+
+        } finally {
+            java.util.Arrays.fill(password, '\0');
+            passwordField.clear();
+        }
+    }
+
+    private void decryptFile(Stage stage) {
+
+        if (selectedFile == null) {
+            showMessage("Шифрланған файлды таңдаңыз.");
+            return;
+        }
+
+        char[] password = passwordField.getText().toCharArray();
+
+        try {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Қалпына келтірілген файлды сақтау");
+            chooser.setInitialFileName("decrypted-file");
+
+            File destination = chooser.showSaveDialog(stage);
+
+            if (destination == null) return;
+
+            DecryptionService.decrypt(
+                    selectedFile.toPath(),
+                    destination.toPath(),
+                    password
+            );
+
+            resultArea.setText(
+                    "Файл сәтті қалпына келтірілді!\n\n" +
+                    "Аутентификация: сәтті\n" +
+                    "Нәтиже: " + destination.getName()
+            );
+
+            statusLabel.setText("Дешифрлау аяқталды.");
+
+        } catch (IOException | GeneralSecurityException |
+                 IllegalArgumentException ex) {
+            showError(ex.getMessage());
+
+        } finally {
+            java.util.Arrays.fill(password, '\0');
+            passwordField.clear();
         }
     }
 
@@ -165,6 +211,15 @@ public class MainApp extends Application {
         Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setTitle("SecureFile");
         alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showError(String message) {
+
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Қате");
+        alert.setHeaderText("Операция орындалмады");
         alert.setContentText(message);
         alert.showAndWait();
     }
