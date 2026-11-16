@@ -11,6 +11,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.IOException;
 
 public class MainApp extends Application {
 
@@ -39,26 +40,6 @@ public class MainApp extends Application {
         Button encryptButton = new Button("Шифрлау");
         Button decryptButton = new Button("Дешифрлау");
 
-        selectButton.setOnAction(e -> selectFile(stage));
-
-        scanButton.setOnAction(e ->
-                statusLabel.setText(
-                        "Файлды тексеру модулі дайындалуда."
-                )
-        );
-
-        encryptButton.setOnAction(e ->
-                statusLabel.setText(
-                        "Шифрлау модулі дайындалуда."
-                )
-        );
-
-        decryptButton.setOnAction(e ->
-                statusLabel.setText(
-                        "Дешифрлау модулі дайындалуда."
-                )
-        );
-
         fileLabel = new Label("Әзірге файл таңдалмады");
 
         passwordField = new PasswordField();
@@ -66,13 +47,29 @@ public class MainApp extends Application {
 
         resultArea = new TextArea();
         resultArea.setPromptText(
-                "Тексеру және шифрлау нәтижелері осы жерде көрсетіледі..."
+                "Тексеру және шифрлау нәтижелері..."
         );
         resultArea.setEditable(false);
         resultArea.setPrefRowCount(8);
 
         statusLabel = new Label("Жүйе дайын.");
         statusLabel.setStyle("-fx-text-fill: #16a34a;");
+
+        selectButton.setOnAction(e -> selectFile(stage));
+
+        scanButton.setOnAction(e -> scanSelectedFile());
+
+        encryptButton.setOnAction(e ->
+                statusLabel.setText(
+                        "Шифрлау модулі келесі кезеңде қосылады."
+                )
+        );
+
+        decryptButton.setOnAction(e ->
+                statusLabel.setText(
+                        "Дешифрлау модулі келесі кезеңде қосылады."
+                )
+        );
 
         VBox fileSection = new VBox(10,
                 new Label("1. Файлды таңдаңыз"),
@@ -90,10 +87,11 @@ public class MainApp extends Application {
                 encryptButton,
                 decryptButton
         );
+
         actions.setAlignment(Pos.CENTER_LEFT);
 
         VBox resultSection = new VBox(10,
-                new Label("3. Нәтиже"),
+                new Label("3. Privacy Radar нәтижесі"),
                 resultArea,
                 statusLabel
         );
@@ -109,9 +107,7 @@ public class MainApp extends Application {
         );
 
         content.setPadding(new Insets(30));
-        content.setStyle(
-                "-fx-background-color: #f8fafc;"
-        );
+        content.setStyle("-fx-background-color: #f8fafc;");
 
         Scene scene = new Scene(content, 720, 580);
 
@@ -134,6 +130,43 @@ public class MainApp extends Application {
             statusLabel.setText("Файл сәтті таңдалды.");
             resultArea.clear();
         }
+    }
+
+    private void scanSelectedFile() {
+
+        if (selectedFile == null) {
+            showMessage("Алдымен файл таңдаңыз.");
+            return;
+        }
+
+        try {
+            PrivacyScanner.ScanResult result =
+                    PrivacyScanner.scan(selectedFile);
+
+            resultArea.setText(result.getReport());
+
+            statusLabel.setText(
+                    "Тексеру аяқталды. Қауіп деңгейі: "
+                            + result.getRiskLevel()
+            );
+
+        } catch (IOException ex) {
+
+            resultArea.setText(
+                    "Қате: " + ex.getMessage()
+            );
+
+            statusLabel.setText("Файлды тексеру мүмкін болмады.");
+        }
+    }
+
+    private void showMessage(String message) {
+
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("SecureFile");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     public static void main(String[] args) {
