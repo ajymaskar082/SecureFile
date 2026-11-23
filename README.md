@@ -78,9 +78,19 @@ GitHub Actions арқылы Java 17 ортасында Maven құрастыру 
 - Skipped: 0
 - BUILD SUCCESS
 
-## 8. Бағдарлама скриншоты
+## 8. Бағдарлама скриншоттары
 
-Бағдарламаның нақты іске қосылған Desktop GUI скриншоты осы бөлімге қосылады.
+### Негізгі интерфейс
+![SecureFile Main Window](SecureFile_MainWindow.png)
+
+### Privacy Radar
+![Privacy Radar](PrivacyRadar.png)
+
+### Файлды шифрлау
+![Encryption Success](Encryption_Success.png)
+
+### Файлды дешифрлау
+![Decryption Success](Decryption_Success.png)
 
 ## 9. Автор
 
